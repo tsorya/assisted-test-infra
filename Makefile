@@ -166,10 +166,17 @@ clear_inventory:
 delete_all_virsh_resources: destroy_nodes delete_minikube
 	skipper run 'discovery-infra/delete_nodes.py -a' $(SKIPPER_PARAMS)
 
-build_and_push_image:
+build_and_push_image: create_inventory_client
 	$(CONTAINER_COMMAND) build -t $(IMAGE_NAME):$(IMAGE_TAG) -f Dockerfile.test-infra .
 	$(CONTAINER_COMMAND) tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_REG_NAME):$(IMAGE_TAG)
 	$(CONTAINER_COMMAND) push $(IMAGE_REG_NAME):$(IMAGE_TAG)
+
+create_inventory_client: bring_bm_inventory
+	mkdir -p build
+	echo '{"packageName" : "bm_inventory_client", "packageVersion": "1.0.0"}' > build/code-gen-config.json
+	sed -i '/pattern:/d' $(PWD)/bm-inventory/swagger.yaml
+	$(CONTAINER_COMMAND) run -it --rm -u $(CURRENT_USER) -v $(PWD)/:/swagger-api/out -v $(PWD)/bm-inventory/swagger.yaml:/swagger.yaml:ro,Z -v $(PWD)/build/code-gen-config.json:/config.json:ro,Z jimschubert/swagger-codegen-cli:2.3.1 generate --lang python --config /config.json --output ./bm-inventory-client/ --input-spec /swagger.yaml
+
 
 #######
 # ISO #
