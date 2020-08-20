@@ -188,6 +188,27 @@ class InventoryClient(object):
         log.info("Installing cluster %s", cluster_id)
         return self.client.install_cluster(cluster_id=cluster_id)
 
+    def download_host_logs(self, cluster_id, host_id, output_file):
+        log.info("Downloading logs to %s", output_file)
+        try:
+            response = self.client.download_host_logs(
+                cluster_id=cluster_id, host_id=host_id, _preload_content=False
+            )
+            response.raise_for_status()
+        except Exception:
+            log.exception("Failed ot get logs for host %s", host_id)
+            raise
+
+        with open(output_file, "wb") as _file:
+            _file.write(response.data)
+
+    def download_logs_from_all_hosts(self, cluster_id, output_folder):
+        hosts = self.client.get_cluster_hosts(cluster_id=cluster_id)
+        for host in hosts:
+            self.download_host_logs(cluster_id=cluster_id,
+                                    host_id=host["id"],
+                                    output_file=os.path.join(output_folder, f'{host["id"]}_logs.tar.gz'))
+
 
 def create_client(url, wait_for_api=True):
     log.info('Creating assisted-service client for url: %s', url)
