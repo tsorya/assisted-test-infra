@@ -203,7 +203,7 @@ class InventoryClient(object):
             _file.write(response.data)
 
     def download_logs_from_all_hosts(self, cluster_id, output_folder):
-        hosts = self.client.get_cluster_hosts(cluster_id=cluster_id)
+        hosts = self.get_cluster_hosts(cluster_id=cluster_id)
         for host in hosts:
             self.download_host_logs(cluster_id=cluster_id,
                                     host_id=host["id"],
