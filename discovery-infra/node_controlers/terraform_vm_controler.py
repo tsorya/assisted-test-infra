@@ -1,3 +1,4 @@
+
 import libvirt
 import utils
 
@@ -5,7 +6,7 @@ import consts
 from node_controlers.node_controler import NodeControler
 
 
-class QeVmController(NodeControler):
+class TerraformController(NodeControler):
 
     def __init__(self):
         self.libvirt_connection = libvirt.open('qemu:///system')
@@ -24,7 +25,7 @@ class QeVmController(NodeControler):
                 nodes[domain_name] = domain_state
 
         return nodes
-    
+
     def shutdown_node(self, node_name):
         node = self.libvirt_connection.lookupByName(node_name)
 
@@ -55,7 +56,7 @@ class QeVmController(NodeControler):
 
     def format_node_disk(self, node_name):
         command = f"qemu-img info /var/lib/libvirt/images/linchpin/{node_name}.qcow2 | grep 'virtual size'"
-        output = utils.run_command(command, shell=True)        
+        output = utils.run_command(command, shell=True)
         image_size = output[0].split(' ')[2]
 
         command = f'qemu-img create -f qcow2 /var/lib/libvirt/images/linchpin/{node_name}.qcow2 {image_size}'
@@ -69,5 +70,4 @@ class QeVmController(NodeControler):
 
     def get_ingress_and_api_vips(self):
 
-        return {"api_vip":"192.168.123.5", "ingress_vip":"192.168.123.10"}
-
+        return {"api_vip": "192.168.123.5", "ingress_vip": "192.168.123.10"}

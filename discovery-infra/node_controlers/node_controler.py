@@ -1,6 +1,19 @@
+import os
 from typing import Dict
 
-class NodeControler:    
+
+class NodeControler:
+
+    @staticmethod
+    def factory():
+        if os.environ.get('NODE_ENV') == 'QE_VM':
+            return
+        #return eval(type + "()")
+        if type == "Circle": return Circle()
+        if type == "Square": return Square()
+        assert 0, "Bad shape creation: " + type
+    factory = staticmethod(factory)
+
     def list_nodes(self) -> Dict[str, str]:
         raise NotImplementedError
 
@@ -8,7 +21,7 @@ class NodeControler:
         raise NotImplementedError
 
     def shutdown_all_nodes(self) -> None:
-            raise NotImplementedError
+        raise NotImplementedError
 
     def start_node(self, node_name: str) -> None:
         raise NotImplementedError
@@ -18,7 +31,7 @@ class NodeControler:
 
     def restart_node(self, node_name: str) -> None:
         raise NotImplementedError
-    
+
     def format_node_disk(self, node_name: str) -> None:
         raise NotImplementedError
 

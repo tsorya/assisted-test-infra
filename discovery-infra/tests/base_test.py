@@ -5,11 +5,8 @@ import assisted_service_api
 import utils
 import consts
 from tests.conftest import env_variables
+from node_controlers import factory
 
-if os.environ.get('NODE_ENV') == 'QE_VM':
-    from node_controlers.qe_vm_controler import QeVmController as node_controler
-else:
-    raise NotImplementedError
 
 class BaseTest:
     @pytest.fixture()
@@ -21,7 +18,7 @@ class BaseTest:
 
     @pytest.fixture()
     def node_controler(self):
-        controler = node_controler()
+        controler = factory.factory()
         yield controler
         controler.shutdown_all_nodes()
         controler.format_all_node_disks()
