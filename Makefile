@@ -351,4 +351,16 @@ test:
 	skipper make $(SKIPPER_PARAMS) _test
 
 _test: $(REPORTS)
+	if [ -d /tmp/assisted_test_infra_logs ]; then rm -rf /tmp/assisted_test_infra_logs; fi
+	mkdir /tmp/assisted_test_infra_logs
+	cp -p discovery-infra/test_infra/tools/tf_network_pool.json /tmp/tf_network_pool.json
 	python3 -m pytest $(or ${TEST},discovery-infra/tests) -k $(or ${TEST_FUNC},'') -m $(or ${TEST_MARKER},'') --verbose -s --junit-xml=$(REPORTS)/unittest.xml
+
+test_parallel:
+	if [ -d /tmp/assisted_test_infra_logs ]; then rm -rf /tmp/assisted_test_infra_logs; fi
+	mkdir /tmp/assisted_test_infra_logs
+	cp -p discovery-infra/test_infra/tools/tf_network_pool.json /tmp/tf_network_pool.json
+	skipper make $(SKIPPER_PARAMS) _test_parallel
+
+_test_parallel: $(REPORTS)
+	python3 -m pytest -n $(or ${TEST_WORKERS_NUM}, '2') $(or ${TEST},discovery-infra/tests) -k $(or ${TEST_FUNC},'') -m $(or ${TEST_MARKER},'') --verbose -s --junit-xml=$(REPORTS)/unittest.xml

@@ -1,10 +1,17 @@
 import logging
 import os
+import random
+from string import ascii_lowercase
 from distutils import util
 from pathlib import Path
 
 import pytest
 from test_infra import assisted_service_api, consts, utils
+
+
+def _get_random_name():
+    return ''.join(random.choice(ascii_lowercase) for i in range(8))
+
 
 qe_env = False
 
@@ -47,8 +54,15 @@ env_variables = {"ssh_public_key": utils.get_env('SSH_PUB_KEY'),
                  "kubeconfig_path": utils.get_env('KUBECONFIG', ''),
                  "log_folder": utils.get_env('LOG_FOLDER', consts.LOG_FOLDER)}
 
-image = utils.get_env('ISO',
-                      os.path.join(consts.IMAGE_FOLDER, f'{env_variables["cluster_name"]}-installer-image.iso')).strip()
+cluster_mid_name = _get_random_name()
+if not qe_env:
+    image = utils.get_env('ISO',
+                          os.path.join(consts.IMAGE_FOLDER, f'{env_variables["cluster_name"]}-{cluster_mid_name}-'
+                                                            f'installer-image.iso')).strip()
+else:
+    image = utils.get_env('ISO',
+                          os.path.join(consts.IMAGE_FOLDER, f'{env_variables["cluster_name"]}-installer-image.iso')).\
+        strip()
 
 env_variables["iso_download_path"] = image
 env_variables["num_nodes"] = env_variables["num_workers"] + env_variables["num_masters"]
@@ -58,6 +72,7 @@ env_variables["num_nodes"] = env_variables["num_workers"] + env_variables["num_m
 def api_client():
     logging.info(f'--- SETUP --- api_client\n')
     yield get_api_client()
+
 
 def get_api_client(offline_token=env_variables['offline_token'], **kwargs):
     url = env_variables['remote_service_url']
@@ -70,18 +85,22 @@ def get_api_client(offline_token=env_variables['offline_token'], **kwargs):
 
 
 @pytest.fixture(scope="session")
+def is_dev_env():
+    return not is_qe_env()
+
+
+@pytest.fixture(scope="session")
 def setup_node_controller():
     logging.info(f'--- SETUP --- node controller\n')
-    controller = nodeController(**env_variables)
-    controller.prepare_nodes()
-    yield controller
+    if is_qe_env():
+        controller = nodeController(**env_variables)
+        controller.prepare_nodes()
+        yield controller
+    yield nodeController
     logging.info(f'--- TEARDOWN --- node controller\n')
-    controller.destroy_all_nodes()
+    if is_qe_env():
+        controller.destroy_all_nodes()
 
-@pytest.fixture(scope="session", autouse=True)
-def prepare_logs():
-    logging.info(f'--- SETUP --- Creating Logs Folder\n')
-    utils.recreate_folder(env_variables['log_folder'])
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):

@@ -1,17 +1,14 @@
 import logging
-import os
 import random
-import yaml
 import pytest
 import json
-import shutil
 from contextlib import suppress
 from string import ascii_lowercase
 from typing import Optional
-from collections import Counter
 
+from test_infra.tools.network_assets import NetworkAssets
 from assisted_service_client.rest import ApiException
-from test_infra import consts, utils
+from test_infra import utils
 from test_infra.helper_classes.cluster import Cluster
 from test_infra.helper_classes.nodes import Nodes
 from tests.conftest import env_variables
@@ -25,13 +22,27 @@ def random_name():
 class BaseTest:
 
     @pytest.fixture(scope="function")
-    def nodes(self, setup_node_controller):
-        controller = setup_node_controller
-        nodes = Nodes(controller, env_variables["private_ssh_key_path"])
-        nodes.set_correct_boot_order(start_nodes=False)
-        yield nodes
-        nodes.shutdown_all()
-        nodes.format_all_disks()
+    def nodes(self, setup_node_controller, is_dev_env):
+        if is_dev_env:
+            net_asset = None
+            try:
+                net_asset = NetworkAssets()
+                env_variables["net_asset"] = net_asset.get()
+                controller = setup_node_controller(**env_variables)
+                controller.prepare_nodes()
+                nodes = Nodes(controller, env_variables["private_ssh_key_path"])
+                yield nodes
+                logging.info(f'--- TEARDOWN --- node controller\n')
+                controller.destroy_all_nodes()
+            finally:
+                net_asset.release()
+        else:
+            controller = setup_node_controller
+            nodes = Nodes(controller, env_variables["private_ssh_key_path"])
+            nodes.set_correct_boot_order(start_nodes=False)
+            yield nodes
+            nodes.shutdown_all()
+            nodes.format_all_disks()
 
     @pytest.fixture()
     def cluster(self, api_client, request):
