@@ -27,7 +27,7 @@ class BaseTest:
         try:
             if is_dev_env:
                 net_asset = NetworkAssets()
-                env_variables["asset"] = net_asset.get_asset()
+                env_variables["asset"] = net_asset.get()
             controller = setup_node_controller(**env_variables)
             controller.prepare_nodes()
             nodes = Nodes(controller, env_variables["private_ssh_key_path"])
@@ -36,7 +36,7 @@ class BaseTest:
             controller.destroy_all_nodes()
         finally:
             if net_asset:
-                is_dev_env.release()
+                net_asset.release()
 
     @pytest.fixture()
     def cluster(self, api_client, request):
