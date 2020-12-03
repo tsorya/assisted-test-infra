@@ -92,14 +92,8 @@ def is_dev_env():
 @pytest.fixture(scope="session")
 def setup_node_controller():
     logging.info(f'--- SETUP --- node controller\n')
-    if is_qe_env():
-        controller = nodeController(**env_variables)
-        controller.prepare_nodes()
-        yield controller
     yield nodeController
     logging.info(f'--- TEARDOWN --- node controller\n')
-    if is_qe_env():
-        controller.destroy_all_nodes()
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

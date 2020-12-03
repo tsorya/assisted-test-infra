@@ -1,4 +1,5 @@
 import json
+import os
 import logging
 from munch import Munch
 from test_infra import utils
@@ -8,11 +9,11 @@ from test_infra import consts
 DEFAULT_LOCK_FILE = "/tmp/network_pool.lock"
 
 
-class NetworkAssets:
+class Assets:
 
-    def __init__(self, assets_file=consts.TF_NETWORK_POOL_PATH, lock_file=DEFAULT_LOCK_FILE):
+    def __init__(self, assets_file=consts.TF_NETWORK_POOL_PATH, lock_file=None):
         self.assets_file = assets_file
-        self.lock_file = lock_file
+        self.lock_file = lock_file or os.path.join("/tmp", os.path.basename(assets_file) + ".lock")
         self._took_assets = []
 
     def get(self):
@@ -24,10 +25,10 @@ class NetworkAssets:
             with open(self.assets_file, "w") as _file:
                 json.dump(all_assets, _file)
             self._took_assets.append(asset)
-        logging.info("Taken network asset: %s", asset)
+        logging.info("Taken asset: %s", asset)
         return asset
 
-    def return_assets(self, assets):
+    def release(self, assets):
         logging.info("Returning %d assets", len(assets))
         logging.debug("Assets to return: %s", assets)
         with utils.file_lock_context(self.lock_file):
@@ -37,6 +38,12 @@ class NetworkAssets:
             with open(self.assets_file, "w") as _file:
                 json.dump(all_assets, _file)
 
-    def release(self):
+    def release_all(self):
         logging.info("Returning all %d assets", len(self._took_assets))
-        self.return_assets(self._took_assets)
+        self.release(self._took_assets)
+
+
+class NetworkAssets(Assets):
+
+    def __init__(self):
+        super().__init__(assets_file=consts.TF_NETWORK_POOL_PATH)
