@@ -36,7 +36,7 @@ class BaseTest:
             controller.destroy_all_nodes()
         finally:
             if net_asset:
-                net_asset.release()
+                net_asset.release_all()
 
     @pytest.fixture()
     def cluster(self, api_client, request):
