@@ -27,7 +27,7 @@ class BaseTest:
         try:
             if is_dev_env:
                 net_asset = NetworkAssets()
-                env_variables["asset"] = net_asset.get()
+                env_variables["net_asset"] = net_asset.get()
             controller = setup_node_controller(**env_variables)
             controller.prepare_nodes()
             nodes = Nodes(controller, env_variables["private_ssh_key_path"])
