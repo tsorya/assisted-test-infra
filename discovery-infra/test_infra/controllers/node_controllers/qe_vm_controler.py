@@ -15,6 +15,6 @@ class QeVmController(LibvirtController):
     def get_ingress_and_api_vips(self):
         return {"api_vip": "192.168.123.5", "ingress_vip": "192.168.123.10"}
 
-    def destroy_all_nodes(self):
-        self.nodes.set_correct_boot_order(start_nodes=False)
-        super().destroy_all_nodes()
+    def prepare_nodes(self):
+        for node in self.list_nodes():
+            self.set_boot_order_flow(node.name(), False)

@@ -61,11 +61,14 @@ class Nodes(object):
     def format_all_disks(self):
         self.run_for_all_nodes("format_disk")
 
-    def destroy_all(self):
-        self.run_for_all_nodes("shutdown")
-
     def reboot_all(self):
         self.run_for_all_nodes("restart")
+
+    def destroy_all_nodes(self):
+        self.controller.destroy_all_nodes()
+
+    def prepare_nodes(self):
+        self.controller.prepare_nodes()
 
     def reboot_given(self, nodes):
         self.run_for_given_nodes(nodes, "restart")

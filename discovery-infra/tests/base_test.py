@@ -29,11 +29,11 @@ class BaseTest:
                 net_asset = NetworkAssets()
                 env_variables["net_asset"] = net_asset.get()
             controller = setup_node_controller(**env_variables)
-            controller.prepare_nodes()
             nodes = Nodes(controller, env_variables["private_ssh_key_path"])
+            nodes.prepare_nodes()
             yield nodes
             logging.info(f'--- TEARDOWN --- node controller\n')
-            controller.destroy_all_nodes()
+            nodes.destroy_all_nodes()
         finally:
             if net_asset:
                 net_asset.release_all()

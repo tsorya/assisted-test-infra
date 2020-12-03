@@ -6,9 +6,6 @@ from test_infra import utils
 from test_infra import consts
 
 
-DEFAULT_LOCK_FILE = "/tmp/network_pool.lock"
-
-
 class Assets:
 
     def __init__(self, assets_file=consts.TF_NETWORK_POOL_PATH, lock_file=None):
