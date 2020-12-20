@@ -1,0 +1,35 @@
+apiVersion: v1
+        baseDomain: redhat.com
+        compute:
+        - architecture: amd64
+        hyperthreading: Enabled
+        name: worker
+        platform: {}
+        replicas: 0
+        controlPlane:
+        architecture: amd64
+        hyperthreading: Enabled
+        name: master
+        platform: {}
+        replicas: 1
+        metadata:
+        creationTimestamp: null
+        name: test-cluster
+        networking:
+        clusterNetwork:
+        - cidr: 10.128.0.0/14
+        hostPrefix: 23
+        machineNetwork:
+        - cidr: 192.168.126.0/24
+        networkType: OpenShiftSDN
+        serviceNetwork:
+        - 172.30.0.0/16
+        platform:
+        libvirt:
+        URI: qemu+tcp://192.168.122.1/system
+        network:
+        if: mybridge
+        publish: External
+        pullSecret:
+        sshKey: |
+        ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC9OzioK/QBpNLqJF3QZlNxSeJABEOHP0eCHv/nqkwJY8sxdaZT49uTyYXLdEpMCh9l2d684abHLu3wwuxqHe3VXL3+Qz/9IkQjgsznANt/AtJR+LoOqHD5qwmFuXTdFKTvR7coJnIWRu7On4WXG97izOfbJA1DIv5A7T+AtSibL1MTyn8svOsPPgGOz4Y2zQQarFuBJuuqC3QBUCGkPKIIY/syy5xMALVQZ7v1uSw+jjxePvM8JeXLsT6RTaDseJ6l0j3oNt3EolfqFJlJScjSYgF6e+2xpjJvEmueV+jzL5blQ697pJBYkN0q3nC1AmLDngHyoah1NRfwTvi6x350lBkrE2KlKGXzL2H80vJDDFRRMtf4f3YbOIXdOjKkJfoTZQg/CcoldEpTh9vtfyUJb7/FQS9Ef69+kcQ7Vz/0OvDwMLLnZr2bfbXS8WgRwYaDRhEH+5VsZngp4xumkDEThqY5Y2G9x+DRftn0Z1ogn8TofiuHvLmPPkBOBZRFhwE= root@f11-h29-b03-5039ms.rdu2.scalelab.redhat.com
