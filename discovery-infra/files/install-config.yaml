@@ -25,10 +25,7 @@ networking:
   serviceNetwork:
   - 172.30.0.0/16
 platform:
-  libvirt:
-    URI: qemu+tcp://192.168.122.1/system
-    network:
-      if: mybridge
+  none: {}
 publish: External
 pullSecret: '{}'
 sshKey: ""

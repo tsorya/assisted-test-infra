@@ -735,3 +735,6 @@ def extract_installer(release_image, dest):
         raise Exception('Failed to extract installer, exception: {}'.format(ex))
 
 
+def set_network_asset_file():
+    if not os.path.exists(consts.TF_NETWORK_POOL_PATH):
+        shutil.copy("discovery-infra/test_infra/tools/tf_network_pool.json", consts.TF_NETWORK_POOL_PATH)

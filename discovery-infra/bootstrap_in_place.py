@@ -4,6 +4,7 @@ import shlex
 import logging
 import yaml
 from test_infra import utils, consts
+from test_infra.tools.assets import NetworkAssets
 from test_infra.controllers.node_controllers.terraform_controller import TerraformController
 
 build = "build"
@@ -25,10 +26,11 @@ def installer_generate():
 
 
 def download_livecd(download_path, rhcos_version=None):
-    logging.info("Downloading iso to %s", download_path)
     if os.path.exists(download_path):
-        logging.info("Image %s already exists, skipping", download_path)
+        logging.info("Image %s already exists, skipping download", download_path)
+        return
 
+    logging.info("Downloading iso to %s", download_path)
     rhcos_version = rhcos_version or os.getenv('RHCOS_VERSION', "46.82.202009222340-0")
     utils.run_command(f"curl https://releases-art-rhcos.svc.ci.openshift.org/art/storage/releases/rhcos-4.6/"
                       f"{rhcos_version}/x86_64/rhcos-{rhcos_version}-live.x86_64.iso --retry 5 -o {download_path}")
@@ -44,13 +46,16 @@ def embed(image_name, ignition_file, embed_image_name):
                         f"iso ignition embed {build}/{image_name} "
                         f"-f --ignition-file /data/{MY_DIR}/{ignition_file} -o /data/{embedded_image}")
 
-    shutil.move(embedded_image, os.path.join(consts.BASE_IMAGE_FOLDER, embed_image_name))
+    image_path = os.path.join(consts.BASE_IMAGE_FOLDER, embed_image_name)
+    shutil.move(embedded_image, image_path)
+    return image_path
 
 
 def fill_install_config(pull_secret, ssh_pub_key):
-
+    yaml.add_representer(str, str_presenter)
     with open(INSTALL_CONFIG, "r") as _file:
         config = yaml.safe_load(_file)
+
     config["pullSecret"] = pull_secret
     config["sshKey"] = ssh_pub_key
     with open(INSTALL_CONFIG, "w") as _file:
@@ -63,6 +68,26 @@ def setup_files_and_folders(args):
     utils.recreate_folder(MY_DIR, with_chmod=False, force_recreate=True)
     shutil.copy(os.path.join(FILES, INSTALL_CONFIG_FILE_NAME), MY_DIR)
     fill_install_config(args.pull_secret, args.ssh_key)
+    utils.set_network_asset_file()
+
+
+def str_presenter(dumper, data):
+    if "ssh-rsa" in data:  # check for multiline string
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+
+def start_node(image_path):
+    net_asset = NetworkAssets()
+    controller_kwargs = {
+        "num_workers": 0,
+        "num_masters": 1,
+        "net_asset": net_asset.get(),
+        "iso_download_path": image_path
+    }
+
+    controller = TerraformController(**controller_kwargs)
+    controller.start_all_nodes()
 
 
 def execute_ibip_flow(args):
@@ -75,5 +100,6 @@ def execute_ibip_flow(args):
 
     installer_generate()
     download_livecd(f"{build}/installer-image.iso")
-    embed("installer-image.iso", "bootstrap.ign", EMBED_IMAGE_NAME)
+    image_path = embed("installer-image.iso", "bootstrap.ign", EMBED_IMAGE_NAME)
+    start_node(image_path)
     # TODO TerraformController create and start nodes
