@@ -696,14 +696,15 @@ def config_etc_hosts(cluster_name: str, base_dns_domain: str, api_vip: str):
             logging.info("Updated /etc/hosts: %s", api_vip_dnsname)
 
 
-def run_container(container_name, image, flags=[]):
+def run_container(container_name, image, flags=None, command=""):
     logging.info(f'Running Container {container_name}')
     run_container_cmd = f'podman {consts.PODMAN_FLAGS} run --name {container_name}'
 
+    flags = flags or []
     for flag in flags:
         run_container_cmd += f' {flag}'
 
-    run_container_cmd += f' {image}'
+    run_container_cmd += f' {image} {command}'
 
     run_command(run_container_cmd, shell=True)
 
@@ -726,10 +727,10 @@ def get_openshift_version():
     return get_env('OPENSHIFT_VERSION', consts.DEFAULT_OPENSHIFT_VERSION)
 
 
-def extract_installer(work_dir="build", openshift_release_image=None):
+def extract_installer(release_image, dest):
     try:
-        release_image = openshift_release_image or os.getenv('OPENSHIFT_INSTALL_RELEASE_IMAGE')
-        run_command(f"oc adm release extract --command=openshift-install --to={work_dir} {release_image}")
+        logging.info("Extracting installer from %s to %s", release_image, dest)
+        run_command(f"oc adm release extract --command=openshift-install --to={dest} {release_image}")
     except Exception as ex:
         raise Exception('Failed to extract installer, exception: {}'.format(ex))
 

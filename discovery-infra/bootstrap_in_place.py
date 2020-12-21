@@ -1,42 +1,71 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
-
-
 import os
 import shutil
-from test_infra import utils
+import shlex
+import logging
+import yaml
+from test_infra import utils, consts
+from test_infra.controllers.node_controllers.terraform_controller import TerraformController
 
-
-MyDir = "build/MyDir"
+build = "build"
+MY_DIR = f"{build}/mydir"
+FILES = "discovery-infra/files"
+INSTALL_CONFIG = os.path.join(MY_DIR, "install-config.yaml")
+INSTALL_COMMAND = "build/openshift-install"
+EMBED_IMAGE_NAME = "installer-SNO-image.iso"
 
 
 def installer_generate():
-
-    utils.recreate_folder(MyDir, with_chmod=False, force_recreate=True)
-    shutil.copy("files/install-config.yaml", MyDir)
-    utils.run_command(f"build/openshift-install create manifests --dir={MyDir}")
-    shutil.copy("files/install-config.yaml", MyDir)
-    utils.run_command(f"build/openshift-install create ignition-configs --dir={MyDir}")
-    return
+    logging.info("Installer generate manifests")
+    utils.recreate_folder(MY_DIR, with_chmod=False, force_recreate=True)
+    shutil.copy(f"{FILES}/install-config.yaml", MY_DIR)
+    utils.run_command(f"{INSTALL_COMMAND} create manifests --dir={MY_DIR}")
+    logging.info("Installer generate ignitions")
+    # TODO delete
+    shutil.copy(f"{FILES}/sno_manifest.yaml", MY_DIR)
+    utils.run_command(f"{INSTALL_COMMAND} create ignition-configs --dir={MY_DIR}")
 
 
 def download_livecd(download_path, rhcos_version=None):
+    logging.info("Downloading iso to %s", download_path)
+    if os.path.exists(download_path):
+        logging.info("Image %s already exists, skipping", download_path)
+
     rhcos_version = rhcos_version or os.getenv('RHCOS_VERSION', "46.82.202009222340-0")
-    utils.run_command(f"curl {rhcos_version} --retry 5 -o {download_path}")
+    utils.run_command(f"curl https://releases-art-rhcos.svc.ci.openshift.org/art/storage/releases/rhcos-4.6/"
+                      f"{rhcos_version}/x86_64/rhcos-{rhcos_version}-live.x86_64.iso --retry 5 -o {download_path}")
 
 
-def embed(image_path, ignition_file):
-    current_dir = os.getcwd()
-    command = f"podman run --pull=always --privileged --rm -v /dev:/dev -v /run/udev:/run/udev " \
-              f"-v {current_dir}/build:/data -w /data " \
-              f"quay.io/coreos/coreos-installer:release iso ignition embed {image_path} -f --ignition-file " \
-              f"/data/mydir/{ignition_file} -o /data/installer-SNO-image.iso"
-    utils.run_command(command)
-    shutil.copy("build/installer-SNO-image.iso", "/tmp/images")
+def embed(image_name, ignition_file, embed_image_name):
+    logging.info("Embed ignition %s to iso %s", ignition_file, image_name)
+    embedded_image = os.path.join(build, embed_image_name)
+    os.remove(embedded_image) if os.path.exists(embedded_image) else None
+
+    flags = shlex.split(f"--privileged --rm -v /dev:/dev -v /run/udev:/run/udev -v .:/data -w /data")
+    utils.run_container("coreos-installer", "quay.io/coreos/coreos-installer:release", flags,
+                        f"iso ignition embed {build}/{image_name} "
+                        f"-f --ignition-file /data/{MY_DIR}/{ignition_file} -o /data/{embedded_image}")
+
+    shutil.move(embedded_image, os.path.join(consts.BASE_IMAGE_FOLDER, embed_image_name))
 
 
-if __name__ == "__main__":
-    utils.extract_installer()
+def fill_install_config(pull_secret, ssh_pub_key):
+    with open(INSTALL_CONFIG, "r") as _file:
+        config = yaml.safe_load(_file)
+    config["pullSecret"] = pull_secret
+    config["sshKey"] = ssh_pub_key
+    with open(INSTALL_CONFIG, "w") as _file:
+        yaml.dump(config, _file)
+
+
+def execute_ibip_flow(args):
+    openshift_release_image = os.getenv('OPENSHIFT_INSTALL_RELEASE_IMAGE')
+    if not openshift_release_image:
+        raise Exception("os env OPENSHIFT_INSTALL_RELEASE_IMAGE must be provided")
+
+    utils.recreate_folder(MY_DIR, with_chmod=False, force_recreate=False)
+    utils.extract_installer(openshift_release_image, build)
+    fill_install_config(args.pull_secret, args.ssh_key)
     installer_generate()
-    download_livecd("build/installer-image.iso")
-    embed("build/installer-image.iso", "build/bootstrap.ign")
+    download_livecd(f"{build}/installer-image.iso")
+    embed("installer-image.iso", "bootstrap.ign", EMBED_IMAGE_NAME)
+    # TODO TerraformController create and start nodes
