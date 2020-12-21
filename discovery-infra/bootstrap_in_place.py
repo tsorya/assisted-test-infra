@@ -7,17 +7,16 @@ from test_infra import utils, consts
 from test_infra.controllers.node_controllers.terraform_controller import TerraformController
 
 build = "build"
+INSTALL_CONFIG_FILE_NAME = "install-config.yaml"
 MY_DIR = f"{build}/mydir"
 FILES = "discovery-infra/files"
-INSTALL_CONFIG = os.path.join(MY_DIR, "install-config.yaml")
+INSTALL_CONFIG = os.path.join(MY_DIR, INSTALL_CONFIG_FILE_NAME)
 INSTALL_COMMAND = "build/openshift-install"
 EMBED_IMAGE_NAME = "installer-SNO-image.iso"
 
 
 def installer_generate():
     logging.info("Installer generate manifests")
-    utils.recreate_folder(MY_DIR, with_chmod=False, force_recreate=True)
-    shutil.copy(f"{FILES}/install-config.yaml", MY_DIR)
     utils.run_command(f"{INSTALL_COMMAND} create manifests --dir={MY_DIR}")
     logging.info("Installer generate ignitions")
     # TODO delete
@@ -49,6 +48,7 @@ def embed(image_name, ignition_file, embed_image_name):
 
 
 def fill_install_config(pull_secret, ssh_pub_key):
+
     with open(INSTALL_CONFIG, "r") as _file:
         config = yaml.safe_load(_file)
     config["pullSecret"] = pull_secret
@@ -57,14 +57,22 @@ def fill_install_config(pull_secret, ssh_pub_key):
         yaml.dump(config, _file)
 
 
+def setup_files_and_folders(args):
+    logging.info("Creating needed files and folders")
+    utils.recreate_folder(consts.BASE_IMAGE_FOLDER, force_recreate=False)
+    utils.recreate_folder(MY_DIR, with_chmod=False, force_recreate=True)
+    shutil.copy(os.path.join(FILES, INSTALL_CONFIG_FILE_NAME), MY_DIR)
+    fill_install_config(args.pull_secret, args.ssh_key)
+
+
 def execute_ibip_flow(args):
     openshift_release_image = os.getenv('OPENSHIFT_INSTALL_RELEASE_IMAGE')
     if not openshift_release_image:
         raise Exception("os env OPENSHIFT_INSTALL_RELEASE_IMAGE must be provided")
+    setup_files_and_folders(args)
 
-    utils.recreate_folder(MY_DIR, with_chmod=False, force_recreate=False)
     utils.extract_installer(openshift_release_image, build)
-    fill_install_config(args.pull_secret, args.ssh_key)
+
     installer_generate()
     download_livecd(f"{build}/installer-image.iso")
     embed("installer-image.iso", "bootstrap.ign", EMBED_IMAGE_NAME)
