@@ -749,7 +749,7 @@ if __name__ == "__main__":
         '--ns-index',
         help='Namespace index',
         type=int,
-        required=True
+        default=0,
     )
     parser.add_argument(
         '--profile',
