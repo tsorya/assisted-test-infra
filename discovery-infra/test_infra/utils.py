@@ -16,17 +16,21 @@ from pathlib import Path
 from functools import wraps
 from contextlib import contextmanager
 import xml.dom.minidom as md
+from typing import Dict
 
 import libvirt
 import waiting
 import requests
 import filelock
 from test_infra import consts
+from test_infra.tools import connection
 import oc_utils
 from logger import log
 from retry import retry
 from pprint import pformat
 from distutils.dir_util import copy_tree
+from assisted_service_client import models
+
 
 conn = libvirt.open("qemu:///system")
 
@@ -124,12 +128,13 @@ def is_cvo_available():
         conditions = json.loads(res)['items'][0]['status']['conditions']
         for condition in conditions:
             log.info(
-                f"CVO condition <{condition['type']}> status is <{condition['status']}>, because: {condition['message']}")
+                f"CVO condition <{condition['type']}> status is <{condition['status']}>, "
+                f"because: {condition.get('message')}")
 
             if condition['type'] == 'Available' and condition['status'] == 'True':
                 return True
     except:
-        log.info("exception in access the cluster api server")
+        log.exception("exception in access the cluster api server")
     return False
 
 
@@ -659,10 +664,12 @@ def create_ip_address_nested_list(node_count, starting_ip_addr):
 def create_empty_nested_list(node_count):
     return [[] for i in range(node_count)]
 
+
 def get_libvirt_nodes_from_tf_state(network_names, tf_state):
     nodes = extract_nodes_from_tf_state(tf_state, network_names, consts.NodeRoles.MASTER)
     nodes.update(extract_nodes_from_tf_state(tf_state, network_names, consts.NodeRoles.WORKER))
     return nodes
+
 
 def extract_nodes_from_tf_state(tf_state, network_names, role):
     domains = next(r["instances"] for r in tf_state.resources if r["type"] == "libvirt_domain" and r["name"] == role)
@@ -673,7 +680,7 @@ def extract_nodes_from_tf_state(tf_state, network_names, role):
             if nic["network_name"] not in network_names:
                 continue
 
-            data[nic["mac"]] =  {"ip": nic["addresses"], "name": d["attributes"]["name"], "role": role}
+            data[nic["mac"]] = {"ip": nic["addresses"], "name": d["attributes"]["name"], "role": role}
 
     return data
 
@@ -801,9 +808,11 @@ def update_hosts(client, cluster_id, libvirt_nodes, update_hostnames=False, upda
 
     client.update_hosts(cluster_id=cluster_id, hosts_with_roles=roles, hosts_names=hostnames)
 
+
 def get_assisted_controller_status(kubeconfig):
     log.info("Getting controller status")
-    command = f"oc --insecure-skip-tls-verify --kubeconfig={kubeconfig} --no-headers=true -n assisted-installer get pods -l job-name=assisted-installer-controller"
+    command = f"oc --insecure-skip-tls-verify --kubeconfig={kubeconfig} --no-headers=true -n assisted-installer " \
+              f"get pods -l job-name=assisted-installer-controller"
     response = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     if response.returncode != 0:
         log.error(f'failed to get controller status: {response.stderr}')
@@ -811,3 +820,45 @@ def get_assisted_controller_status(kubeconfig):
 
     log.info(f'{response.stdout}')
     return response.stdout
+
+
+def get_network_interface_ip(interface):
+    if len(interface.ipv4_addresses) > 0:
+        return interface.ipv4_addresses[0].split("/")[0]
+    if len(interface.ipv6_addresses) > 0:
+        return interface.ipv6_addresses[0].split("/")[0]
+    return " "
+
+
+def get_inventory_host_nics_data(host: dict):
+    inventory = models.Inventory(**json.loads(host["inventory"]))
+    interfaces_list = [models.Interface(**interface) for interface in inventory.interfaces]
+    return [{'name': interface.name, 'model': interface.product, 'mac': interface.mac_address,
+             'ip': get_network_interface_ip(interface), 'speed': interface.speed_mbps} for interface in interfaces_list]
+
+
+def get_inventory_host_ips_data(host: dict):
+    nics = get_inventory_host_nics_data(host)
+    return [nic["ip"] for nic in nics]
+
+
+def get_inventory_host_reachable_ips(host: dict, port: int):
+    ips = get_inventory_host_ips_data(host)
+    return [ip for ip in ips if connection.is_open(ip, port)]
+
+
+def get_masters_from_cluster(cluster: dict):
+    return [host for host in cluster["hosts"] if host["role"] == consts.NodeRoles.MASTER]
+
+
+def get_api_vip_from_cluster(cluster: dict):
+    if cluster.get("api_vip"):
+        logging.info("API VIP is set: %s", cluster["api_vip"])
+        return cluster["api_vip"]
+    # workaround for MGMT-3583
+    if cluster.get("user_managed_networking") or cluster.get("user-managed-networking"):
+        logging.info("API VIP is not set, taking masters reachable ip")
+        masters = get_masters_from_cluster(cluster)
+        ips = get_inventory_host_reachable_ips(masters[0], 443)
+        logging.info("master %s first reachable ip is %s", masters[0], ips[0])
+        return ips[0]

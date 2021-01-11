@@ -440,7 +440,8 @@ def nodes_flow(client, cluster_name, cluster, image_path, static_macs):
             if args.wait_for_cvo:
                 cluster_info = client.cluster_get(cluster.id)
                 log.info("Start waiting till CVO status is available")
-                config_etc_hosts(cluster_info.name, cluster_info.base_dns_domain, cluster_info.api_vip)
+                config_etc_hosts(cluster_info.name, cluster_info.base_dns_domain,
+                                 utils.get_api_vip_from_cluster(cluster_info.to_dict()))
                 utils.wait_for_cvo_available()
 
 
