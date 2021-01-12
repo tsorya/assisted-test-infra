@@ -29,7 +29,7 @@ from logger import log
 from retry import retry
 from pprint import pformat
 from distutils.dir_util import copy_tree
-from assisted_service_client import models
+
 
 
 conn = libvirt.open("qemu:///system")
@@ -820,45 +820,3 @@ def get_assisted_controller_status(kubeconfig):
 
     log.info(f'{response.stdout}')
     return response.stdout
-
-
-def get_network_interface_ip(interface):
-    if len(interface.ipv4_addresses) > 0:
-        return interface.ipv4_addresses[0].split("/")[0]
-    if len(interface.ipv6_addresses) > 0:
-        return interface.ipv6_addresses[0].split("/")[0]
-    return " "
-
-
-def get_inventory_host_nics_data(host: dict):
-    inventory = models.Inventory(**json.loads(host["inventory"]))
-    interfaces_list = [models.Interface(**interface) for interface in inventory.interfaces]
-    return [{'name': interface.name, 'model': interface.product, 'mac': interface.mac_address,
-             'ip': get_network_interface_ip(interface), 'speed': interface.speed_mbps} for interface in interfaces_list]
-
-
-def get_inventory_host_ips_data(host: dict):
-    nics = get_inventory_host_nics_data(host)
-    return [nic["ip"] for nic in nics]
-
-
-def get_inventory_host_reachable_ips(host: dict, port: int):
-    ips = get_inventory_host_ips_data(host)
-    return [ip for ip in ips if connection.is_open(ip, port)]
-
-
-def get_masters_from_cluster(cluster: dict):
-    return [host for host in cluster["hosts"] if host["role"] == consts.NodeRoles.MASTER]
-
-
-def get_api_vip_from_cluster(cluster: dict):
-    if cluster.get("api_vip"):
-        logging.info("API VIP is set: %s", cluster["api_vip"])
-        return cluster["api_vip"]
-    # workaround for MGMT-3583
-    if cluster.get("user_managed_networking") or cluster.get("user-managed-networking"):
-        logging.info("API VIP is not set, taking masters reachable ip")
-        masters = get_masters_from_cluster(cluster)
-        ips = get_inventory_host_reachable_ips(masters[0], 443)
-        logging.info("master %s first reachable ip is %s", masters[0], ips[0])
-        return ips[0]
