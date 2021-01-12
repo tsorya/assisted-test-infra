@@ -81,7 +81,7 @@ class Cluster:
 
     def wait_until_hosts_are_discovered(self, nodes_count=env_variables['num_nodes'],
                                         allow_insufficient=False):
-        statuses=[consts.NodesStatus.PENDING_FOR_INPUT, consts.NodesStatus.KNOWN]
+        statuses = [consts.NodesStatus.PENDING_FOR_INPUT, consts.NodesStatus.KNOWN]
         if allow_insufficient:
             statuses.append(consts.NodesStatus.INSUFFICIENT)
         utils.wait_till_all_hosts_are_in_status(
@@ -676,5 +676,5 @@ def get_api_vip_from_cluster(api_client, cluster_info: models.cluster.Cluster):
         if "user-managed-networking" in cluster_info:
             cluster_info["user_managed_networking"] = cluster_info.pop("user-managed-networking")
         cluster_info = Munch.fromDict(cluster_info)
-    cluster = Cluster(api_client=api_client, cluster_id=cluster_info["id"])
+    cluster = Cluster(api_client=api_client, cluster_id=cluster_info.id)
     return cluster.get_api_vip(cluster=cluster_info)

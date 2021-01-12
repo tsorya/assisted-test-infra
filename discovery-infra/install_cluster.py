@@ -117,7 +117,7 @@ def run_install_flow(client, cluster_id, kubeconfig_path, pull_secret, tf=None):
     if tf:
         cluster_info = client.cluster_get(cluster.id)
         if not cluster_info.api_vip:
-            cluster_info.api_vip = helper_cluster.get_api_vip_from_cluster(cluster_info)
+            cluster_info.api_vip = helper_cluster.get_api_vip_from_cluster(client, cluster_info)
 
         tf.set_new_vip(cluster_info.api_vip)
 

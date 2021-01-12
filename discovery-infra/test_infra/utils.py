@@ -16,20 +16,17 @@ from pathlib import Path
 from functools import wraps
 from contextlib import contextmanager
 import xml.dom.minidom as md
-from typing import Dict
 
 import libvirt
 import waiting
 import requests
 import filelock
 from test_infra import consts
-from test_infra.tools import connection
 import oc_utils
 from logger import log
 from retry import retry
 from pprint import pformat
 from distutils.dir_util import copy_tree
-
 
 
 conn = libvirt.open("qemu:///system")

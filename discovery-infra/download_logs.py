@@ -34,7 +34,8 @@ def main():
 
     if args.cluster_id:
         cluster = client.cluster_get(args.cluster_id)
-        download_logs(client, json.loads(json.dumps(cluster.to_dict(), sort_keys=True, default=str)), args.dest, args.download_all)
+        download_logs(client, json.loads(json.dumps(cluster.to_dict(), sort_keys=True, default=str)),
+                      args.dest, args.download_all)
     else:
         clusters = client.clusters_list()
 
@@ -53,7 +54,9 @@ def should_download_logs(cluster: dict):
     return cluster['status'] in [ClusterStatus.ERROR]
 
 
-def download_logs(client: InventoryClient, cluster: dict, dest: str, must_gather: bool, retry_interval: int = RETRY_INTERVAL):
+def download_logs(client: InventoryClient, cluster: dict, dest: str,
+                  must_gather: bool, retry_interval: int = RETRY_INTERVAL):
+
     output_folder = get_logs_output_folder(dest, cluster)
 
     if os.path.isdir(output_folder):
@@ -106,7 +109,8 @@ def download_logs(client: InventoryClient, cluster: dict, dest: str, must_gather
 
             if must_gather:
                 recreate_folder(os.path.join(output_folder, "must-gather"))
-                config_etc_hosts(cluster['name'], cluster['base_dns_domain'], helper_cluster.get_api_vip_from_cluster(cluster))
+                config_etc_hosts(cluster['name'], cluster['base_dns_domain'],
+                                 helper_cluster.get_api_vip_from_cluster(client, cluster))
                 download_must_gather(kubeconfig_path, os.path.join(output_folder, "must-gather"))
     finally:
         run_command(f"chmod -R ugo+rx '{output_folder}'")
