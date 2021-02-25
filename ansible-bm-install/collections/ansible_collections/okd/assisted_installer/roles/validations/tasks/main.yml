@@ -30,7 +30,7 @@
 - name: Fail if remote_service_url is empty
   fail:
     msg: |
-         The remote service URL is empty. Need a value similar to http://example.com:6000
+         The remote service URL is empty. Need a value similar to http://example.com:6500
   when: remote_service_url|length == 0
 
 - name: Check for required VMware pre-reqs
