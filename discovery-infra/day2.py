@@ -167,7 +167,7 @@ def day2_nodes_flow(client,
 
         log.info("Start waiting until installed nodes has actually been added to the OCP cluster")
         waiting.wait(
-            lambda: wait_nodes_join_ocp_cluster(ocp_orig_ready_nodes, num_worker_nodes, day2_type_flag),
+            lambda: wait_nodes_join_ocp_cluster(ocp_orig_ready_nodes, num_worker_nodes, day2_type_flag, kubeconfig),
             timeout_seconds=consts.NODES_REGISTERED_TIMEOUT,
             sleep_seconds=30,
             waiting_for="Day2 nodes to be added to OCP cluster",
