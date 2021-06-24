@@ -175,7 +175,7 @@ resource "libvirt_domain" "worker" {
 
   network_interface {
     network_name = libvirt_network.net.name
-    hostname   = "${var.cluster_name}-worker-${count.index}.${var.cluster_domain}"
+    hostname   = "${var.cluster_name}-${var.worker_hostname}-${count.index}.${var.cluster_domain}"
     addresses  = var.libvirt_worker_ips[count.index]
     mac = var.libvirt_worker_macs[count.index]
   }

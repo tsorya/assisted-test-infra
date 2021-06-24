@@ -904,7 +904,7 @@ def main():
         execute_kube_api_flow()
         return
 
-    if args.day1_cluster:
+    if args.day1_cluster and not args.cluster_id:
         cluster_id = execute_day1_flow()
 
     elif is_none_platform_mode():
@@ -915,7 +915,7 @@ def main():
 
     has_ipv6 = args.ipv6 and args.ipv6.lower() in MachineNetwork.YES_VALUES
     if args.day2_cloud_cluster:
-        day2.execute_day2_cloud_flow(cluster_id, args, has_ipv6)
+        day2.execute_day2_cloud_flow(cluster_id, args, has_ipv6, master=args.day2_master)
     if args.day2_ocp_cluster:
         day2.execute_day2_ocp_flow(cluster_id, args, has_ipv6)
     if args.bootstrap_in_place:
@@ -1174,6 +1174,13 @@ if __name__ == "__main__":
         help="day2 cloud cluster",
         action="store_true",
     )
+
+    parser.add_argument(
+        "--day2-master",
+        help="day2 cloud cluster",
+        action="store_true",
+    )
+
     parser.add_argument(
         "--day2-ocp-cluster",
         help="day2 ocp cluster",

@@ -134,6 +134,12 @@ variable "libvirt_master_vcpu" {
   default     = "4"
 }
 
+variable "worker_hostname" {
+  type        = string
+  description = "The hostname of worker."
+  default = "worker"
+}
+
 variable "master_cpu_mode" {
   type        = string
   description = "CPUs virtualization flag"
