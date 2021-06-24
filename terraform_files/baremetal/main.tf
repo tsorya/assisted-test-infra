@@ -145,7 +145,7 @@ resource "libvirt_domain" "master" {
 resource "libvirt_domain" "worker" {
   count = var.worker_count
 
-  name = "${var.cluster_name}-worker-${count.index}"
+  name = "${var.cluster_name}-${var.worker_hostname}-${count.index}"
 
   memory = var.libvirt_worker_memory
   vcpu   = var.libvirt_worker_vcpu
@@ -153,7 +153,7 @@ resource "libvirt_domain" "worker" {
 
   dynamic "disk" {
     for_each = {
-      for idx, disk in libvirt_volume.worker : idx => disk.id if length(regexall(".*-worker-${count.index}-disk-.*", disk.name)) > 0
+      for idx, disk in libvirt_volume.worker : idx => disk.id if length(regexall(".*-${var.worker_hostname}-${count.index}-disk-.*", disk.name)) > 0
     }
     content {
       volume_id = disk.value
