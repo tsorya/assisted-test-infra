@@ -9,6 +9,7 @@ import waiting
 from test_infra import assisted_service_api, utils, consts, warn_deprecate
 from test_infra.consts import resources
 from test_infra.tools import static_network, terraform_utils
+from test_infra.utils import get_kubeconfig_path
 
 from logger import log
 
@@ -81,6 +82,7 @@ def execute_day2_flow(cluster_id, args, day2_type_flag, has_ipv6, master=False):
         args.install_cluster,
         day2_type_flag,
         args.with_static_network_config,
+        cluster_name,
         master
     )
 
@@ -96,6 +98,7 @@ def day2_nodes_flow(client,
                     install_cluster_flag,
                     day2_type_flag,
                     with_static_network_config,
+                    base_cluster_name,
                     master=False):
     tf_network_name, total_num_nodes = get_network_num_nodes_from_tf(tf_folder)
     with utils.file_lock_context():
@@ -144,7 +147,8 @@ def day2_nodes_flow(client,
 
     if install_cluster_flag:
         log.info("Start installing all known nodes in the cluster %s", cluster.id)
-        ocp_orig_ready_nodes = get_ocp_cluster_ready_nodes_num()
+        kubeconfig = get_kubeconfig_path(base_cluster_name)
+        ocp_orig_ready_nodes = get_ocp_cluster_ready_nodes_num(kubeconfig)
         hosts = client.get_cluster_hosts(cluster.id)
         [client.install_day2_host(cluster.id, host['id']) for host in hosts if host["status"] == 'known']
 
@@ -235,18 +239,18 @@ def set_workers_addresses_by_type(tfvars, num_worker_nodes, master_ip_type, work
     tfvars[worker_mac_type] = old_worker_mac_addresses + static_network.generate_macs(num_worker_nodes)
 
 
-def wait_nodes_join_ocp_cluster(num_orig_nodes, num_new_nodes, day2_type_flag):
+def wait_nodes_join_ocp_cluster(num_orig_nodes, num_new_nodes, day2_type_flag, kubeconfig):
     if day2_type_flag == "cloud":
-        approve_workers_on_ocp_cluster()
-    return get_ocp_cluster_ready_nodes_num() == num_orig_nodes + num_new_nodes
+        approve_workers_on_ocp_cluster(kubeconfig)
+    return get_ocp_cluster_ready_nodes_num(kubeconfig) == num_orig_nodes + num_new_nodes
 
 
-def approve_workers_on_ocp_cluster():
-    csrs = get_ocp_cluster_csrs()
+def approve_workers_on_ocp_cluster(kubeconfig):
+    csrs = get_ocp_cluster_csrs(kubeconfig)
     for csr in csrs:
         if not csr['status']:
             csr_name = csr['metadata']['name']
-            ocp_cluster_csr_approve(csr_name)
+            ocp_cluster_csr_approve(csr_name, kubeconfig)
             log.info("CSR %s for node %s has been approved", csr_name, csr['spec']['username'])
 
 
@@ -263,8 +267,8 @@ def config_etc_hosts(api_vip_ip, api_vip_dnsname):
         f.writelines(hosts_lines)
 
 
-def get_ocp_cluster_nodes():
-    res = subprocess.check_output("oc --kubeconfig=build/kubeconfig get nodes --output=json", shell=True)
+def get_ocp_cluster_nodes(kubeconfig):
+    res = subprocess.check_output(f"oc --kubeconfig={kubeconfig} get nodes --output=json", shell=True)
     return json.loads(res)['items']
 
 
@@ -277,18 +281,18 @@ def is_ocp_node_ready(node_status):
     return False
 
 
-def get_ocp_cluster_ready_nodes_num():
-    nodes = get_ocp_cluster_nodes()
+def get_ocp_cluster_ready_nodes_num(kubeconfig):
+    nodes = get_ocp_cluster_nodes(kubeconfig)
     return len([node for node in nodes if is_ocp_node_ready(node['status'])])
 
 
-def get_ocp_cluster_csrs():
-    res = subprocess.check_output("oc --kubeconfig=build/kubeconfig get csr --output=json", shell=True)
+def get_ocp_cluster_csrs(kubeconfig):
+    res = subprocess.check_output(f'oc --kubeconfig={kubeconfig} get csr --output=json', shell=True)
     return json.loads(res)['items']
 
 
-def ocp_cluster_csr_approve(csr_name):
-    subprocess.check_output("oc --kubeconfig=build/kubeconfig adm certificate approve %s" % csr_name, shell=True)
+def ocp_cluster_csr_approve(csr_name, kubeconfig):
+    subprocess.check_output(f'oc --kubeconfig={kubeconfig} adm certificate approve {csr_name}', shell=True)
 
 
 def _day2_cluster_create_params(openshift_version, api_vip_dnsname):
