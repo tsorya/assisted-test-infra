@@ -188,9 +188,8 @@ def get_network_num_nodes_from_tf(tf_folder):
 
 def configure_terraform(tf_folder, num_worker_nodes, api_vip_ip, api_vip_dnsname, master=False):
     tfvars = utils.get_tfvars(tf_folder)
-    if not master:
-        configure_terraform_workers_nodes(tfvars, num_worker_nodes)
-    else:
+    configure_terraform_workers_nodes(tfvars, num_worker_nodes)
+    if master:
         tfvars["worker_hostname"] = "master-day2"
         tfvars["libvirt_worker_vcpu"] = resources.DEFAULT_MASTER_CPU
         tfvars["libvirt_worker_memory"] = resources.DEFAULT_MASTER_MEMORY
