@@ -171,6 +171,7 @@ def day2_nodes_flow(client,
             timeout_seconds=consts.NODES_REGISTERED_TIMEOUT,
             sleep_seconds=30,
             waiting_for="Day2 nodes to be added to OCP cluster",
+            expected_exceptions=Exception
         )
         log.info("%d worker nodes were successfully added to OCP cluster", num_worker_nodes)
 
